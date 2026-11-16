@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Source {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  institution String
+  url         String
+  consultedAt DateTime?
+  indicators Indicator[]
+  createdAt   DateTime    @default(now())
+}
+
+model Category {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  slug        String      @unique
+  description String?
+  indicators  Indicator[]
+}
+
+model Indicator {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  name           String
+  description    String
+  unit           String
+  periodicity    String
+  methodology    String?
+  geographyLevel String        @default("Brasil")
+  externalCode   String?
+  categoryId     String
+  sourceId       String
+  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime      @default(now())
+  category       Category      @relation(fields: [categoryId], references: [id])
+  source         Source        @relation(fields: [sourceId], references: [id])
+  observations   Observation[]
+  @@index([categoryId])
+  @@index([sourceId])
+}
+
+model Observation {
+  id          String    @id @default(cuid())
+  indicatorId String
+  region      String
+  period      String
+  value       Float
+  fetchedAt   DateTime  @default(now())
+  geographyCode String?
+  geographyLevel String?
+  indicator  Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  @@unique([indicatorId, region, period])
+  @@index([region, period])
+  @@index([geographyCode, period])
+}
+
+model ImportLog {
+  id          String   @id @default(cuid())
+  sourceName  String
+  status      String
+  message     String?
+  records     Int      @default(0)
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime?
+}

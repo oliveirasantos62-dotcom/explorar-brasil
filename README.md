@@ -1,0 +1,123 @@
+# Observatório de Dados Econômicos e Sociais — MVP com ingestão
+
+Starter fullstack em Next.js + TypeScript, Prisma, MySQL e Recharts.
+
+## Funcionalidades
+- Dashboard e catálogo pesquisável.
+- Página de detalhe com gráfico histórico, unidade, periodicidade, fonte, código externo e última consulta.
+- API REST para indicadores, fontes, categorias, comparação e saúde do banco.
+- Módulo **Explorar Brasil** com mapa interativo das 27 Unidades da Federação, ranking, comparação de até três estados, evolução histórica e exportação CSV/PNG.
+- Ingestão estadual da taxa de desocupação via IBGE/SIDRA (tabela 4099, variável 4103), separada das séries nacionais.
+- Ingestão real via adaptadores para Banco Central/SGS e IBGE/SIDRA.
+- Adaptador IPEAData opcional, configurável por código de série.
+- Upsert idempotente: reimportações atualizam valores revisados sem duplicar observações.
+- Registro de sucesso, falha, quantidade importada e horário em `ImportLog`.
+- Data da coleta (`fetchedAt`) separada do período da observação.
+
+## Fontes e séries integradas
+
+| Fonte | Indicador | Identificador | Cobertura |
+|---|---|---|---|
+| Banco Central — SGS | Selic anualizada | Série 432 | Série diária disponível no SGS |
+| Banco Central — SGS | IPCA mensal (cópia no SGS) | Série 433 | Série mensal disponível no SGS |
+| IBGE — SIDRA | IPCA mensal | Tabela 1737 / variável 63 (variação mensal) | Brasil, últimos 120 períodos retornados pelo SIDRA |
+| IBGE — SIDRA | Taxa de desocupação por UF | Tabela 4099 / variável 4103 | Estados e DF, todo o histórico disponível no SIDRA |
+| IPEAData | Série escolhida pelo operador | `IPEADATA_SERIES_CODE` | Conforme metadados da série |
+
+Documentação: [IBGE Agregados/SIDRA](https://servicodados.ibge.gov.br/api/docs/agregados?versao=3), [SIDRA — taxa de desocupação por UF](https://apisidra.ibge.gov.br/values/t/4099/n3/all/v/4103/p/all), [PNAD Contínua — IBGE](https://www.ibge.gov.br/estatisticas/sociais/trabalho/9173-pnadcontinua.html), [malhas territoriais do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3), [BCB SGS](https://api.bcb.gov.br/), [IPEAData OData](https://ipeadata.gov.br/api/).
+
+**Nota:** o código de série e a unidade devem sempre ser conferidos nos metadados oficiais antes de uso editorial. As consultas SGS usam um intervalo explícito de até 10 anos para respeitar o limite aplicado pelo Banco Central às séries diárias. A série 433 do BCB é a variação mensal do IPCA; no SIDRA, a variável 63 da tabela 1737 é a variação mensal (a variável 2266 é o número-índice). A integração foi configurada para a variável 63.
+
+## Requisitos
+- Node.js 20.9+
+- MySQL 8.0+
+
+## Instalação local
+1. Extraia o ZIP e abra a pasta no terminal.
+2. Instale: `npm install`.
+3. Crie o banco MySQL `observatorio` (por exemplo: `CREATE DATABASE observatorio CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`).
+4. Copie `.env.example` para `.env` e ajuste `DATABASE_URL` no formato `mysql://usuario:senha@localhost:3306/observatorio`. Se a senha tiver caracteres especiais (`@`, `#`, `/` etc.), codifique-os para URL.
+5. Defina `INGESTION_API_KEY` com uma chave longa e aleatória.
+6. Gere o Prisma Client e atualize o banco:
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+7. Prepare o catálogo sem criar dados fictícios:
+   ```bash
+   npm run db:seed
+   ```
+8. Importe os dados oficiais:
+   ```bash
+   npm run ingest
+   ```
+   Para atualizar somente as séries do IBGE (incluindo a taxa estadual usada no mapa): `npm run ingest:ibge`.
+9. Inicie a aplicação: `npm run dev`. Acesse `http://localhost:3000`.
+
+## Executar por fonte
+```bash
+npm run ingest:bcb
+npm run ingest:ibge
+npm run ingest:ipea
+```
+
+O IPEAData é opcional porque cada série exige código, unidade, periodicidade e cobertura específicos. Configure no `.env`:
+```env
+IPEADATA_SERIES_CODE="CODIGO_DA_SERIE"
+IPEADATA_INDICATOR_SLUG="slug-da-serie"
+IPEADATA_INDICATOR_NAME="Nome conforme metadados"
+IPEADATA_INDICATOR_UNIT="Unidade conforme metadados"
+IPEADATA_INDICATOR_PERIODICITY="Mensal"
+```
+Consulte e valide o `SERCODIGO` e os metadados em [IPEAData API](https://ipeadata.gov.br/api/). O adaptador considera séries numéricas com observações nacionais e descarta registros explicitamente identificados como território diferente de Brasil. Não use uma série regional como se fosse Brasil.
+
+## Disparar ingestão por HTTP
+`POST /api/admin/ingest` exige `Authorization: Bearer <INGESTION_API_KEY>`.
+
+Importar todas as fontes configuradas:
+```bash
+curl -X POST http://localhost:3000/api/admin/ingest \
+  -H "Authorization: Bearer SUA_CHAVE" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Filtrar por provedor (ex.: `banco central`, `ibge` ou `ipea`):
+```json
+{ "provider": "ibge" }
+```
+
+Histórico das últimas 50 execuções: `GET /api/imports`.
+
+## Endpoints públicos
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/api/indicators` | Lista; aceita `q`, `category`, `region`, `from`, `to` |
+| GET | `/api/indicators/:slug` | Detalhe + observações |
+| GET | `/api/categories` | Categorias |
+| GET | `/api/sources` | Fontes |
+| GET | `/api/compare?indicator=ipca&regionA=Brasil&regionB=Fortaleza` | Compara regiões com dados disponíveis |
+| GET | `/api/imports` | Histórico de importações |
+| GET | `/api/health` | Saúde da conexão com banco |
+| GET | `/api/map` | Indicadores e observações territoriais disponíveis por UF |
+| GET | `/api/geography/states` | Malha GeoJSON das UFs, servida a partir da API oficial do IBGE |
+| POST | `/api/admin/ingest` | Executa ingestão; exige chave |
+
+## Modelo de dados
+- `Source`: instituição, URL e última consulta.
+- `Category`: tema.
+- `Indicator`: descrição, unidade, periodicidade, metodologia e código externo.
+- `Observation`: região, código territorial IBGE quando disponível, nível geográfico, período, valor e instante de coleta.
+- `ImportLog`: fonte, status, mensagem, quantidade e duração.
+
+## Divisão sugerida para duas pessoas
+- Dev A: adaptadores de fontes, validação, Prisma, idempotência, logs e endpoints.
+- Dev B: dashboard, catálogo, gráficos, filtros, responsividade e testes E2E.
+- Revisão cruzada: cada pessoa testa uma integração e uma funcionalidade vertical da outra.
+
+## Limitações conhecidas / próximos passos
+- O mapa estadual é alimentado pela série específica da PNAD Contínua por UF. As séries nacionais de IPCA e Selic não são replicadas artificialmente para estados.
+- O adaptador IPEAData exige seleção explícita de uma série numérica.
+- O mapa usa os códigos IBGE de UF (dois dígitos) e a malha territorial oficial. A estrutura `geographyCode`/`geographyLevel` foi adicionada às observações para permitir códigos municipais de sete dígitos futuramente.
+- Para produção: adicionar paginação, cache, rate limiting, fila de tarefas, retentativas com backoff, monitoramento, testes automatizados e agendamento periódico.
+- O endpoint HTTP pode atingir o limite de duração do host em importações longas; em produção, prefira executar `npm run ingest` como job agendado/worker.

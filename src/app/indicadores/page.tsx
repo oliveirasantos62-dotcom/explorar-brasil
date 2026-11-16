@@ -1,0 +1,12 @@
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { SearchForm } from "@/components/search-form";
+export const dynamic = "force-dynamic";
+export default async function Indicators({searchParams}:{searchParams:Promise<{q?:string;category?:string;region?:string}>}) {
+  const p=await searchParams;
+  const where:any={};
+  if(p.q) where.OR=[{name:{contains:p.q,mode:"insensitive"}},{description:{contains:p.q,mode:"insensitive"}}];
+  if(p.category) where.category={slug:p.category};
+  const [items,categories]=await Promise.all([prisma.indicator.findMany({where,include:{category:true,source:true,observations:{where:p.region?{region:p.region}:undefined,orderBy:[{period:"desc"},{region:"asc"}],take:1}},orderBy:{name:"asc"}}),prisma.category.findMany({orderBy:{name:"asc"}})]);
+  return <main className="shell"><header className="topbar"><Link href="/" className="brand"><span className="brandmark">O</span> OBSERVATÓRIO</Link><nav className="nav"><Link href="/">Visão geral</Link><Link href="/indicadores">Indicadores</Link><Link href="/explorar-brasil">Explorar Brasil</Link></nav></header><div className="eyebrow">Biblioteca de dados</div><h1 style={{fontFamily:"Manrope",fontSize:34,margin:"10px 0"}}>Catálogo de indicadores</h1><p className="muted">Pesquise, filtre e explore os indicadores disponíveis.</p><SearchForm categories={categories} initialQ={p.q||""} initialCategory={p.category||""}/><div className="panel"><table className="table"><thead><tr><th>Indicador</th><th>Tema</th><th>Fonte</th><th>Último valor / território</th><th>Período</th></tr></thead><tbody>{items.map(i=><tr key={i.id}><td><Link href={`/indicadores/${i.slug}`} style={{color:"#2457d6",fontWeight:700}}>{i.name}</Link><div className="muted" style={{fontSize:11,marginTop:4}}>{i.unit}</div></td><td>{i.category.name}</td><td>{i.source.name}</td><td>{i.observations[0]?.value??"—"}<div className="muted" style={{fontSize:11,marginTop:4}}>{i.observations[0]?.region??"Sem território"}</div></td><td>{i.observations[0]?.period??"—"}</td></tr>)}</tbody></table>{items.length===0&&<div className="empty">Nenhum indicador encontrado. Tente remover algum filtro.</div>}</div><footer className="footer"><span>Observatório · Catálogo</span><Link href="/">Voltar ao início</Link></footer></main>;
+}

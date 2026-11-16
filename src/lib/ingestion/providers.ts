@@ -20,21 +20,27 @@ function normalizeSidraUnemploymentPeriod(label: string | undefined, code: strin
   if (quarter) return `${quarter[2]}-T${quarter[1]}`;
   const month = text.match(/(20\d{2})[\s/.-]*(0?[1-9]|1[0-2])/);
   if (month) return `${month[1]}-${String(Number(month[2])).padStart(2, "0")}`;
-  const raw = String(code ?? "");
-  if (/^20\d{4}$/.test(raw)) return `${raw.slice(0, 4)}-${raw.slice(4, 6)}`;
+  const raw = String(code ?? "").trim();
+  // SIDRA codifica trimestres como AAAATT (ex.: 201201 = 1º trimestre de 2012).
+  const quarterlyCode = raw.match(/^(20\d{2})0([1-4])$/);
+  if (quarterlyCode) return `${quarterlyCode[1]}-T${quarterlyCode[2]}`;
+  // Mantém suporte a códigos mensais caso a fonte altere a periodicidade.
+  const monthlyCode = raw.match(/^(20\d{2})(0[1-9]|1[0-2])$/);
+  if (monthlyCode) return `${monthlyCode[1]}-${monthlyCode[2]}`;
   return null;
 }
 
 async function fetchIbgeUnemploymentByUf(): Promise<NormalizedObservation[]> {
-  // SIDRA 4099 / variável 4103: taxa de desocupação da PNAD Contínua por UF.
-  const url = "https://apisidra.ibge.gov.br/values/t/4099/n3/all/v/4103/p/all";
+  // SIDRA 4099 / variável 4099: taxa de desocupação da PNAD Contínua por UF.
+  // A variável 4103 é o coeficiente de variação da taxa, não a taxa em si.
+  const url = "https://apisidra.ibge.gov.br/values/t/4099/n3/all/v/4099/p/all";
   const rows = await fetchJson<SidraRow[]>(url);
   if (!Array.isArray(rows) || rows.length < 2) throw new Error("SIDRA não retornou a taxa de desocupação por UF.");
   return rows.slice(1).flatMap((row) => {
     const codeKey = Object.keys(row).find((key) => /^D1C$/.test(key));
     const nameKey = Object.keys(row).find((key) => /^D1N$/.test(key));
-    const periodCodeKey = Object.keys(row).find((key) => /^D2C$/.test(key));
-    const periodNameKey = Object.keys(row).find((key) => /^D2N$/.test(key));
+    const periodCodeKey = Object.keys(row).find((key) => /^D3C$/.test(key));
+    const periodNameKey = Object.keys(row).find((key) => /^D3N$/.test(key));
     const rawCode = String(codeKey ? row[codeKey] ?? "" : "").padStart(2, "0");
     const region = UF_CODES[rawCode] ?? (nameKey ? row[nameKey] : undefined);
     const period = normalizeSidraUnemploymentPeriod(periodNameKey ? row[periodNameKey] : undefined, periodCodeKey ? row[periodCodeKey] : undefined);
@@ -166,9 +172,9 @@ export function getImportTargets(): ImportTarget[] {
       name: "Taxa de desocupação por Unidade da Federação",
       description: "Percentual de pessoas desocupadas na força de trabalho, segundo a PNAD Contínua, por estado e Distrito Federal.",
       unit: "%",
-      periodicity: "Conforme divulgação do SIDRA (trimestral/mensal)",
-      methodology: "IBGE/SIDRA, tabela 4099, variável 4103. A série é consultada por Unidade da Federação (nível territorial 3), com todo o histórico disponível. A periodicidade pode variar ao longo da série conforme atualização do SIDRA; confira o período de referência e a metodologia da PNAD Contínua antes de comparar valores.",
-      externalCode: "SIDRA 4099 / variável 4103",
+      periodicity: "Trimestral",
+      methodology: "IBGE/SIDRA, tabela 4099, variável 4099 (taxa de desocupação; a variável 4103 corresponde ao coeficiente de variação). A série é consultada por Unidade da Federação (nível territorial 3), com todo o histórico disponível. A periodicidade é trimestral; confira o período de referência e a metodologia da PNAD Contínua antes de comparar valores.",
+      externalCode: "SIDRA 4099 / variável 4099",
       geographyLevel: "UF",
       fetch: fetchIbgeUnemploymentByUf,
     },

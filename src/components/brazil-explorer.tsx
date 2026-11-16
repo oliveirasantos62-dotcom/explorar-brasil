@@ -295,7 +295,7 @@ export function BrazilExplorer() {
     </section>
 
     {error && <div className="notice"><b>Erro ao consultar os dados:</b> {error}</div>}
-    {!error && payload.indicators.length === 0 && !loading && <div className="notice"><b>Ainda não há indicador estadual cadastrado.</b> Execute <code>npm run ingest:ibge</code> para importar a taxa de desocupação por UF (SIDRA 4099/4103). O mapa territorial continuará disponível, mas sem valores até a importação.</div>}
+    {!error && payload.indicators.length === 0 && !loading && <div className="notice"><b>Ainda não há indicador estadual cadastrado.</b> Execute <code>npm run ingest:ibge</code> para importar a taxa de desocupação por UF (SIDRA 4099, variável 4099). O mapa territorial continuará disponível, mas sem valores até a importação.</div>}
 
     <div className="map-main-grid">
       <section className="panel map-panel">

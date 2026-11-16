@@ -7,7 +7,7 @@ Starter fullstack em Next.js + TypeScript, Prisma, MySQL e Recharts.
 - Página de detalhe com gráfico histórico, unidade, periodicidade, fonte, código externo e última consulta.
 - API REST para indicadores, fontes, categorias, comparação e saúde do banco.
 - Módulo **Explorar Brasil** com mapa interativo das 27 Unidades da Federação, ranking, comparação de até três estados, evolução histórica e exportação CSV/PNG.
-- Ingestão estadual da taxa de desocupação via IBGE/SIDRA (tabela 4099, variável 4103), separada das séries nacionais.
+- Ingestão estadual da taxa de desocupação via IBGE/SIDRA (tabela 4099, variável 4099), separada das séries nacionais.
 - Ingestão real via adaptadores para Banco Central/SGS e IBGE/SIDRA.
 - Adaptador IPEAData opcional, configurável por código de série.
 - Upsert idempotente: reimportações atualizam valores revisados sem duplicar observações.
@@ -21,12 +21,12 @@ Starter fullstack em Next.js + TypeScript, Prisma, MySQL e Recharts.
 | Banco Central — SGS | Selic anualizada | Série 432 | Série diária disponível no SGS |
 | Banco Central — SGS | IPCA mensal (cópia no SGS) | Série 433 | Série mensal disponível no SGS |
 | IBGE — SIDRA | IPCA mensal | Tabela 1737 / variável 63 (variação mensal) | Brasil, últimos 120 períodos retornados pelo SIDRA |
-| IBGE — SIDRA | Taxa de desocupação por UF | Tabela 4099 / variável 4103 | Estados e DF, todo o histórico disponível no SIDRA |
+| IBGE — SIDRA | Taxa de desocupação por UF | Tabela 4099 / variável 4099 | Estados e DF, todo o histórico disponível no SIDRA |
 | IPEAData | Série escolhida pelo operador | `IPEADATA_SERIES_CODE` | Conforme metadados da série |
 
-Documentação: [IBGE Agregados/SIDRA](https://servicodados.ibge.gov.br/api/docs/agregados?versao=3), [SIDRA — taxa de desocupação por UF](https://apisidra.ibge.gov.br/values/t/4099/n3/all/v/4103/p/all), [PNAD Contínua — IBGE](https://www.ibge.gov.br/estatisticas/sociais/trabalho/9173-pnadcontinua.html), [malhas territoriais do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3), [BCB SGS](https://api.bcb.gov.br/), [IPEAData OData](https://ipeadata.gov.br/api/).
+A malha GeoJSON das UFs é obtida pelo endpoint `/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&intrarregiao=UF&qualidade=intermediaria`. Documentação: [IBGE Agregados/SIDRA](https://servicodados.ibge.gov.br/api/docs/agregados?versao=3), [SIDRA — taxa de desocupação por UF](https://apisidra.ibge.gov.br/values/t/4099/n3/all/v/4099/p/all), [PNAD Contínua — IBGE](https://www.ibge.gov.br/estatisticas/sociais/trabalho/9173-pnadcontinua.html), [malhas territoriais do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3), [BCB SGS](https://api.bcb.gov.br/), [IPEAData OData](https://ipeadata.gov.br/api/).
 
-**Nota:** o código de série e a unidade devem sempre ser conferidos nos metadados oficiais antes de uso editorial. As consultas SGS usam um intervalo explícito de até 10 anos para respeitar o limite aplicado pelo Banco Central às séries diárias. A série 433 do BCB é a variação mensal do IPCA; no SIDRA, a variável 63 da tabela 1737 é a variação mensal (a variável 2266 é o número-índice). A integração foi configurada para a variável 63.
+**Nota:** na tabela SIDRA 4099, a variável 4099 é a taxa de desocupação; a variável 4103 é o coeficiente de variação e não deve ser usada como valor principal do indicador. A série estadual é trimestral. O código de série e a unidade devem sempre ser conferidos nos metadados oficiais antes de uso editorial. As consultas SGS usam um intervalo explícito de até 10 anos para respeitar o limite aplicado pelo Banco Central às séries diárias. A série 433 do BCB é a variação mensal do IPCA; no SIDRA, a variável 63 da tabela 1737 é a variação mensal (a variável 2266 é o número-índice). A integração foi configurada para a variável 63.
 
 ## Requisitos
 - Node.js 20.9+

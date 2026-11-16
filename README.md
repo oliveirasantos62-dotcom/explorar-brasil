@@ -118,6 +118,15 @@ Histórico das últimas 50 execuções: `GET /api/imports`.
 ## Limitações conhecidas / próximos passos
 - O mapa estadual é alimentado pela série específica da PNAD Contínua por UF. As séries nacionais de IPCA e Selic não são replicadas artificialmente para estados.
 - O adaptador IPEAData exige seleção explícita de uma série numérica.
-- O mapa usa os códigos IBGE de UF (dois dígitos) e a malha territorial oficial. A estrutura `geographyCode`/`geographyLevel` foi adicionada às observações para permitir códigos municipais de sete dígitos futuramente.
+- O mapa usa os códigos IBGE de UF (dois dígitos) e a malha territorial oficial. A estrutura `geographyCode`/`geographyLevel` aceita códigos de UF (2 dígitos) e de municípios (7 dígitos). Ao selecionar uma UF, o botão **Explorar municípios** abre a malha municipal correspondente, com ranking, comparação, histórico, filtros de indicador/período e exportação CSV.
 - Para produção: adicionar paginação, cache, rate limiting, fila de tarefas, retentativas com backoff, monitoramento, testes automatizados e agendamento periódico.
 - O endpoint HTTP pode atingir o limite de duração do host em importações longas; em produção, prefira executar `npm run ingest` como job agendado/worker.
+
+
+### Exploração municipal
+
+- Geometrias: API de Malhas do IBGE por UF, com `intrarregiao=municipios`; nomes obtidos pela API de Localidades.
+- Dados municipais incluídos: população estimada (SIDRA tabela 6579, variável 9324, nível territorial N6), com os dez períodos mais recentes disponíveis.
+- Execute `npm run ingest:ibge` para importar/atualizar a população municipal e a série estadual de desocupação.
+- A taxa de desocupação da PNAD Contínua permanece somente no nível UF; ela não é replicada para municípios. Indicadores municipais adicionais podem ser cadastrados como novos `ImportTarget` com `geographyLevel: "Municipio"`.
+- Os mapas usam a malha oficial do IBGE. Áreas sem observação permanecem sem valor; não há rateio nem estimativa de valores municipais a partir dos estados.

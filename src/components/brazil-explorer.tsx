@@ -9,6 +9,7 @@ import {
   Plus, TrendingUp, X,
 } from "lucide-react";
 import { BRAZILIAN_STATES, STATE_BY_CODE } from "@/lib/geography";
+import { MunicipalityExplorer } from "@/components/municipality-explorer";
 
 type Indicator = {
   id: string; slug: string; name: string; unit: string; periodicity: string;
@@ -140,6 +141,7 @@ export function BrazilExplorer() {
   const [geoLoading, setGeoLoading] = useState(true);
   const [error, setError] = useState("");
   const [geoError, setGeoError] = useState("");
+  const [municipalityExplorerOpen, setMunicipalityExplorerOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -276,8 +278,8 @@ export function BrazilExplorer() {
 
   return <div className="brazil-explorer">
     <section className="map-intro">
-      <div><div className="eyebrow">Inteligência territorial</div><h1>Explore o Brasil pelos dados.</h1><p>Compare indicadores entre as Unidades da Federação, acompanhe sua evolução e investigue diferenças regionais com dados e fontes identificadas.</p></div>
-      <div className="map-intro-badge"><MapPinned size={18}/><span>27 unidades federativas</span></div>
+      <div><div className="eyebrow">Inteligência territorial</div><h1>Explore o Brasil pelos dados.</h1><p>Explore indicadores em escala estadual e municipal, compare territórios, acompanhe séries históricas e investigue diferenças regionais com dados e fontes identificadas.</p></div>
+      <div className="map-intro-badge"><MapPinned size={18}/><span>27 UFs · 5.569 municípios</span></div>
     </section>
 
     <section className="map-toolbar panel">
@@ -324,6 +326,7 @@ export function BrazilExplorer() {
         </div>
         <div className="state-source"><span>Fonte</span><strong>{indicator?.source.name ?? "—"}</strong>{indicator?.source.url && <a href={indicator.source.url} target="_blank" rel="noreferrer">Consultar fonte original ↗</a>}</div>
         <button className="button button-primary button-full" onClick={() => { if (comparisonCodes.includes(selectedState)) setComparisonCodes((items) => items.filter((code) => code !== selectedState)); else if (comparisonCodes.length < 2) setComparisonCodes((items) => [...items, selectedState]); }} disabled={!selectedSeries.length || (!comparisonCodes.includes(selectedState) && comparisonCodes.length >= 2)}>{comparisonCodes.includes(selectedState) ? <><X size={15}/> Remover da comparação</> : <><Plus size={15}/> Adicionar à comparação</>}</button>
+        <button className="button button-light button-full" style={{ marginTop: 10 }} onClick={() => setMunicipalityExplorerOpen((open) => !open)}><MapPinned size={15}/>{municipalityExplorerOpen ? "Fechar municípios" : `Explorar municípios de ${selected.abbreviation}`}</button>
       </aside>
     </div>
 
@@ -341,6 +344,8 @@ export function BrazilExplorer() {
         <button className="button button-light export-chart-button" onClick={exportChart} disabled={!chartData.length}><Download size={15}/> Exportar gráfico PNG</button>
       </section>
     </div>
+
+    {municipalityExplorerOpen && <MunicipalityExplorer key={selectedState} uf={selectedState} onClose={() => setMunicipalityExplorerOpen(false)} />}
 
     <section className="map-data-note"><Info size={16}/><div><b>Sobre os dados e a cobertura territorial</b><p>{indicator?.methodology ?? "O mapa utiliza a malha territorial oficial do IBGE. Os valores são apresentados somente quando há observações estaduais importadas."} {indicator?.externalCode ? `Identificador: ${indicator.externalCode}.` : ""}</p><small>As áreas sem valor não são estimadas nem preenchidas artificialmente. Consulte sempre a fonte e o período antes de comparar estados.</small></div></section>
   </div>;

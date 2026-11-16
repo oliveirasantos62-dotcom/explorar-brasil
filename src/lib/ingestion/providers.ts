@@ -30,6 +30,26 @@ function normalizeSidraUnemploymentPeriod(label: string | undefined, code: strin
   return null;
 }
 
+async function fetchIbgeMunicipalPopulation(): Promise<NormalizedObservation[]> {
+  // SIDRA 6579 / variável 9324: estimativas anuais de população residente por município.
+  // O recorte dos últimos dez períodos limita o volume e mantém histórico comparável.
+  const url = "https://apisidra.ibge.gov.br/values/t/6579/n6/all/v/9324/p/last%2010";
+  const rows = await fetchJson<SidraRow[]>(url);
+  if (!Array.isArray(rows) || rows.length < 2) throw new Error("SIDRA não retornou estimativas municipais de população.");
+  return rows.slice(1).flatMap((row) => {
+    const entries = Object.entries(row);
+    const geographyEntry = entries.find(([key, value]) => /C$/.test(key) && /^\d{7}$/.test(String(value ?? "")));
+    const geographyNameKey = geographyEntry ? geographyEntry[0].replace(/C$/, "N") : "";
+    const periodEntry = entries.find(([key, value]) => /C$/.test(key) && /^20\d{2}$/.test(String(value ?? "")));
+    const code = geographyEntry ? String(geographyEntry[1]) : "";
+    const name = geographyNameKey ? String(row[geographyNameKey] ?? code) : code;
+    const period = periodEntry ? String(periodEntry[1]) : "";
+    const value = parseBrazilianNumber(row.V ?? row.VALOR);
+    if (!/^\d{7}$/.test(code) || !/^20\d{2}$/.test(period) || value === null) return [];
+    return [{ region: name, period, value, geographyCode: code, geographyLevel: "Municipio" }];
+  });
+}
+
 async function fetchIbgeUnemploymentByUf(): Promise<NormalizedObservation[]> {
   // SIDRA 4099 / variável 4099: taxa de desocupação da PNAD Contínua por UF.
   // A variável 4103 é o coeficiente de variação da taxa, não a taxa em si.
@@ -164,6 +184,19 @@ export function getImportTargets(): ImportTarget[] {
       methodology: "SIDRA tabela 1737, variável 63 (variação mensal), Brasil. A série é importada diretamente da API do IBGE.",
       externalCode: "SIDRA 1737 / variável 63",
       fetch: fetchIbgeIpca,
+    },
+    {
+      ...ibgeBase,
+      categorySlug: "economia",
+      slug: "populacao-estimada-municipios",
+      name: "População estimada por município",
+      description: "Estimativa anual da população residente nos municípios brasileiros, divulgada pelo IBGE.",
+      unit: "habitantes",
+      periodicity: "Anual",
+      methodology: "IBGE/SIDRA, tabela 6579, variável 9324, nível territorial N6 (município). São importados os dez períodos mais recentes disponíveis. A cobertura temporal pode variar conforme a disponibilidade oficial da tabela.",
+      externalCode: "SIDRA 6579 / variável 9324",
+      geographyLevel: "Municipio",
+      fetch: fetchIbgeMunicipalPopulation,
     },
     {
       ...ibgeBase,

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { BRAZILIAN_STATES, STATE_BY_CODE } from "@/lib/geography";
 import { MunicipalityExplorer } from "@/components/municipality-explorer";
+import { CompositeIndexExplorer } from "@/components/composite-index-explorer";
 
 type Indicator = {
   id: string; slug: string; name: string; unit: string; periodicity: string;
@@ -346,6 +347,8 @@ export function BrazilExplorer() {
     </div>
 
     {municipalityExplorerOpen && <MunicipalityExplorer key={selectedState} uf={selectedState} onClose={() => setMunicipalityExplorerOpen(false)} />}
+
+    <CompositeIndexExplorer />
 
     <section className="map-data-note"><Info size={16}/><div><b>Sobre os dados e a cobertura territorial</b><p>{indicator?.methodology ?? "O mapa utiliza a malha territorial oficial do IBGE. Os valores são apresentados somente quando há observações estaduais importadas."} {indicator?.externalCode ? `Identificador: ${indicator.externalCode}.` : ""}</p><small>As áreas sem valor não são estimadas nem preenchidas artificialmente. Consulte sempre a fonte e o período antes de comparar estados.</small></div></section>
   </div>;

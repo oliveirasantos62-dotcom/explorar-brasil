@@ -6,7 +6,7 @@ async function ensureCatalog(target: ImportTarget) {
   const category = await prisma.category.upsert({
     where: { slug: target.categorySlug },
     update: {},
-    create: { slug: target.categorySlug, name: target.categorySlug === "economia" ? "Economia" : "Trabalho e renda" },
+    create: { slug: target.categorySlug, name: ({ economia: "Economia", "trabalho-renda": "Trabalho e renda", demografia: "Demografia" } as Record<string, string>)[target.categorySlug] ?? target.categorySlug },
   });
   const source = await prisma.source.upsert({
     where: { name: target.sourceName },

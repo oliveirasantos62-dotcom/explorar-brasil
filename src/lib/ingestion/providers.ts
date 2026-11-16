@@ -50,6 +50,34 @@ async function fetchIbgeMunicipalPopulation(): Promise<NormalizedObservation[]> 
   });
 }
 
+
+async function fetchIbgeStatePopulation(): Promise<NormalizedObservation[]> {
+  // SIDRA 6579 / variável 9324: estimativas anuais de população por UF (N3).
+  const rows = await fetchJson<SidraRow[]>("https://apisidra.ibge.gov.br/values/t/6579/n3/all/v/9324/p/last%2010");
+  if (!Array.isArray(rows) || rows.length < 2) throw new Error("SIDRA não retornou estimativas estaduais de população.");
+  return rows.slice(1).flatMap((row) => {
+    const code = String(row.D1C ?? "").padStart(2, "0");
+    const region = String(row.D1N ?? UF_CODES[code] ?? "");
+    const period = String(row.D3C ?? row.D3N ?? "").match(/20\d{2}/)?.[0] ?? "";
+    const value = parseBrazilianNumber(row.V ?? row.VALOR);
+    if (!UF_CODES[code] || !/^20\d{2}$/.test(period) || value === null) return [];
+    return [{ region: UF_CODES[code], period, value, geographyCode: code, geographyLevel: "UF" }];
+  });
+}
+
+async function fetchIbgeGdpPerCapitaByUf(): Promise<NormalizedObservation[]> {
+  // SIDRA 5964 / variável 38: PIB per capita anual, nível territorial N3.
+  const rows = await fetchJson<SidraRow[]>("https://apisidra.ibge.gov.br/values/t/5964/n3/all/v/38/p/last%2010");
+  if (!Array.isArray(rows) || rows.length < 2) throw new Error("SIDRA não retornou PIB per capita por UF.");
+  return rows.slice(1).flatMap((row) => {
+    const code = String(row.D1C ?? "").padStart(2, "0");
+    const period = String(row.D3C ?? row.D3N ?? "").match(/20\d{2}/)?.[0] ?? "";
+    const value = parseBrazilianNumber(row.V ?? row.VALOR);
+    if (!UF_CODES[code] || !/^20\d{2}$/.test(period) || value === null) return [];
+    return [{ region: UF_CODES[code], period, value, geographyCode: code, geographyLevel: "UF" }];
+  });
+}
+
 async function fetchIbgeUnemploymentByUf(): Promise<NormalizedObservation[]> {
   // SIDRA 4099 / variável 4099: taxa de desocupação da PNAD Contínua por UF.
   // A variável 4103 é o coeficiente de variação da taxa, não a taxa em si.
@@ -197,6 +225,32 @@ export function getImportTargets(): ImportTarget[] {
       externalCode: "SIDRA 6579 / variável 9324",
       geographyLevel: "Municipio",
       fetch: fetchIbgeMunicipalPopulation,
+    },
+    {
+      ...ibgeBase,
+      categorySlug: "demografia",
+      slug: "populacao-estimada-uf",
+      name: "População estimada por Unidade da Federação",
+      description: "Estimativa anual da população residente em cada estado e no Distrito Federal.",
+      unit: "habitantes",
+      periodicity: "Anual",
+      methodology: "IBGE/SIDRA, tabela 6579, variável 9324, nível territorial N3 (UF). Série anual com os dez períodos mais recentes disponíveis. População absoluta mede tamanho populacional, não qualidade de vida ou desenvolvimento por si só.",
+      externalCode: "SIDRA 6579 / variável 9324 / N3",
+      geographyLevel: "UF",
+      fetch: fetchIbgeStatePopulation,
+    },
+    {
+      ...ibgeBase,
+      categorySlug: "economia",
+      slug: "pib-per-capita-uf",
+      name: "PIB per capita por Unidade da Federação",
+      description: "Produto Interno Bruto por habitante, calculado e divulgado pelo IBGE para estados e Distrito Federal.",
+      unit: "R$ por habitante",
+      periodicity: "Anual",
+      methodology: "IBGE/SIDRA, tabela 5964, variável 38, nível territorial N3 (UF). Indicador econômico médio por habitante; não equivale à renda efetivamente recebida pelas pessoas nem mede distribuição de renda.",
+      externalCode: "SIDRA 5964 / variável 38 / N3",
+      geographyLevel: "UF",
+      fetch: fetchIbgeGdpPerCapitaByUf,
     },
     {
       ...ibgeBase,

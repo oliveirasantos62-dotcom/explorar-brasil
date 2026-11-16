@@ -130,3 +130,36 @@ Histórico das últimas 50 execuções: `GET /api/imports`.
 - Execute `npm run ingest:ibge` para importar/atualizar a população municipal e a série estadual de desocupação.
 - A taxa de desocupação da PNAD Contínua permanece somente no nível UF; ela não é replicada para municípios. Indicadores municipais adicionais podem ser cadastrados como novos `ImportTarget` com `geographyLevel: "Municipio"`.
 - Os mapas usam a malha oficial do IBGE. Áreas sem observação permanecem sem valor; não há rateio nem estimativa de valores municipais a partir dos estados.
+
+## Índices compostos e análise multidimensional
+
+A página **Explorar Brasil** inclui o construtor de índices compostos. É possível selecionar até oito indicadores estaduais, definir o peso de cada um, escolher se valores maiores ou menores representam melhor desempenho, aplicar modelos de referência, salvar combinações no navegador e exportar o ranking em CSV.
+
+### Como o índice é calculado
+
+- Cada indicador é normalizado para uma escala de 0 a 100 pelo método min–max, considerando as UFs com observação no ano selecionado.
+- Indicadores em que valores menores são desejáveis têm a escala invertida.
+- A pontuação final é a média ponderada das pontuações normalizadas.
+- O cálculo é estrito: uma UF sem dado para qualquer indicador selecionado fica sem pontuação. Não há preenchimento por média, zero ou estimativa.
+- Para conciliar séries anuais e trimestrais, o seletor usa o ano de referência e escolhe a observação mais recente disponível dentro daquele ano para cada indicador.
+- A pontuação é relativa à distribuição das UFs naquele recorte; não é um índice oficial e não deve ser comparada automaticamente entre anos.
+
+### Indicadores estaduais disponíveis na ingestão IBGE
+
+- Taxa de desocupação por UF — SIDRA 4099, variável 4099 (trimestral).
+- População estimada por UF — SIDRA 6579, variável 9324 (anual).
+- PIB per capita por UF — SIDRA 5964, variável 38 (anual).
+
+A ingestão municipal de população estimada (SIDRA 6579, variável 9324, nível N6) permanece separada da exploração estadual. Indicadores de saúde, educação, saneamento e segurança não são apresentados como disponíveis até que suas séries e coberturas territoriais sejam integradas e validadas.
+
+### Atualizar o catálogo e os dados
+
+Com `DATABASE_URL` apontando para o banco de dados que será utilizado pela aplicação:
+
+```bash
+npx prisma generate
+npx prisma db push
+npm run ingest:ibge
+```
+
+A API `GET /api/map/multi?indicators=slug-1,slug-2` entrega o catálogo estadual e as observações dos indicadores selecionados para o construtor. As combinações salvas são armazenadas no `localStorage` do navegador; não são compartilhadas entre dispositivos ou usuários.
